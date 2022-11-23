@@ -18,6 +18,7 @@ jobs:
     defaults:
       run:
         shell: bash
+        working-directory: ./100-create-vm
 
     steps:
     # Checkout the repository to the GitHub Actions runner
@@ -35,19 +36,23 @@ jobs:
         RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
         STORAGE_ACCOUNT: ${{ secrets.STORAGE_ACCOUNT }}
         CONTAINER_NAME: ${{ secrets.CONTAINER_NAME }}
-      run: |
-        cd 100-create-vm
-        terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=$CONTAINER_NAME" -backend-config="resource_group_name=$RESOURCE_GROUP"
+      run: terraform init -backend-config="storage_account_name=$STORAGE_ACCOUNT" -backend-config="container_name=$CONTAINER_NAME" -backend-config="resource_group_name=$RESOURCE_GROUP"
 
     # Checks that all Terraform configuration files adhere to a canonical format
     - name: Terraform Format
-      run: |
-        cd 100-create-vm
-        terraform fmt -check
+      id: format
+      run: terraform fmt -check
 
-    # Generates an execution plan for Terraform
-    # - name: Terraform Plan
-    #   run: terraform plan -input=false
+    # Run a terraform plan for pull requests only
+    - name: Terraform Plan
+      id: plan
+      env:
+        ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+        ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+        ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+        ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+      if: github.event_name == 'pull_request'
+      run: terraform plan -no-color
 
     # On push to "main", build or change infrastructure according to Terraform configuration files
     # Note: It is recommended to set up a required "strict" status check in your repository for "Terraform Cloud". See the documentation on "strict" required status checks for more information: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks
